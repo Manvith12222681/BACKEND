@@ -1,5 +1,3 @@
-// controllers/product.controller.js
-
 const Product = require("../models/product.model");
 const uploadOnCloudinary = require("../Utils/uploadOnCloudinary");
 
@@ -9,13 +7,12 @@ const createProduct = async (req, res) => {
     const { name, category, price, availability } = req.body;
     let imageUrl = null;
 
-    if (req.file) {
+    if (req.file?.path) {
       const uploadResult = await uploadOnCloudinary(req.file.path);
-      if (uploadResult) {
-        imageUrl = uploadResult.secure_url;
-      } else {
+      if (!uploadResult?.secure_url) {
         return res.status(500).json({ message: "Image upload failed" });
       }
+      imageUrl = uploadResult.secure_url;
     }
 
     const product = new Product({
@@ -28,9 +25,9 @@ const createProduct = async (req, res) => {
     });
 
     await product.save();
-    res.status(201).json({ message: "Product created", product });
+    return res.status(201).json({ message: "Product created", product });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: error.message });
   }
 };
 
@@ -38,9 +35,9 @@ const createProduct = async (req, res) => {
 const getAllProducts = async (req, res) => {
   try {
     const products = await Product.find().populate("postedBy", "name email");
-    res.status(200).json(products);
+    return res.status(200).json(products);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: error.message });
   }
 };
 
@@ -48,10 +45,12 @@ const getAllProducts = async (req, res) => {
 const getProductById = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id).populate("postedBy", "name email");
-    if (!product) return res.status(404).json({ message: "Product not found" });
-    res.status(200).json(product);
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+    return res.status(200).json(product);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: error.message });
   }
 };
 
@@ -59,9 +58,9 @@ const getProductById = async (req, res) => {
 const getMyProducts = async (req, res) => {
   try {
     const products = await Product.find({ postedBy: req.userId });
-    res.status(200).json(products);
+    return res.status(200).json(products);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: error.message });
   }
 };
 
@@ -71,29 +70,32 @@ const updateProduct = async (req, res) => {
     const { name, category, price, availability } = req.body;
     const product = await Product.findById(req.params.id);
 
-    if (!product) return res.status(404).json({ message: "Product not found" });
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
     if (product.postedBy.toString() !== req.userId) {
-      return res.status(403).json({ message: "Not authorized to update this product" });
+      return res.status(403).json({ message: "Unauthorized to update this product" });
     }
 
     let imageUrl = product.image;
-    if (req.file) {
+    if (req.file?.path) {
       const uploadResult = await uploadOnCloudinary(req.file.path);
-      if (uploadResult) {
+      if (uploadResult?.secure_url) {
         imageUrl = uploadResult.secure_url;
       }
     }
 
-    product.name = name || product.name;
-    product.category = category || product.category;
-    product.price = price || product.price;
+    product.name = name ?? product.name;
+    product.category = category ?? product.category;
+    product.price = price ?? product.price;
     product.availability = availability !== undefined ? availability : product.availability;
     product.image = imageUrl;
 
     await product.save();
-    res.status(200).json({ message: "Product updated", product });
+    return res.status(200).json({ message: "Product updated", product });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: error.message });
   }
 };
 
@@ -101,15 +103,18 @@ const updateProduct = async (req, res) => {
 const deleteProduct = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
-    if (!product) return res.status(404).json({ message: "Product not found" });
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
     if (product.postedBy.toString() !== req.userId) {
-      return res.status(403).json({ message: "Not authorized to delete this product" });
+      return res.status(403).json({ message: "Unauthorized to delete this product" });
     }
 
     await Product.findByIdAndDelete(req.params.id);
-    res.status(200).json({ message: "Product deleted successfully" });
+    return res.status(200).json({ message: "Product deleted successfully" });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: error.message });
   }
 };
 
@@ -117,12 +122,17 @@ const deleteProduct = async (req, res) => {
 const searchByCategory = async (req, res) => {
   try {
     const { category } = req.query;
-    if (!category) return res.status(400).json({ message: "Category query parameter is required" });
+    if (!category) {
+      return res.status(400).json({ message: "Category is required in query" });
+    }
 
-    const products = await Product.find({ category: { $regex: category, $options: "i" } });
-    res.status(200).json(products);
+    const products = await Product.find({
+      category: { $regex: category, $options: "i" },
+    });
+
+    return res.status(200).json(products);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: error.message });
   }
 };
 
@@ -133,5 +143,5 @@ module.exports = {
   getMyProducts,
   updateProduct,
   deleteProduct,
-  searchByCategory
+  searchByCategory,
 };
